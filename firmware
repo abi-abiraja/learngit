@@ -1,0 +1,53 @@
+#include <stdio.h>
+#include <string.h>
+#include <crc.h> // Implement CRC library
+
+// Define UART functions for PC and MCU
+void uart_transmit_pc(char data);
+char uart_receive_pc(void);
+void uart_transmit_mcu(char data);
+char uart_receive_mcu(void);
+
+// Define the given piece of text
+char text[] = "Finance Minister Arun Jaitley Tuesday hit out at former RBI governor Raghuram Rajan...";
+
+int main() {
+    // Transmit text from PC to MCU
+    for (int i = 0; i < strlen(text); i++) {
+        uart_transmit_mcu(text[i]);
+    }
+
+    // Calculate CRC checksum and append to text
+    uint16_t crc_value = calculate_crc(text, strlen(text));
+    uart_transmit_mcu((char)(crc_value & 0xFF));
+    uart_transmit_mcu((char)((crc_value >> 8) & 0xFF));
+
+    // Receive text on MCU and verify CRC checksum
+    char received_text[100];
+    for (int i = 0; i < strlen(text); i++) {
+        received_text[i] = uart_receive_mcu();
+    }
+
+    // Receive and verify CRC checksum
+    char received_crc_low = uart_receive_mcu();
+    char received_crc_high = uart_receive_mcu();
+    uint16_t received_crc = (received_crc_high << 8) | received_crc_low;
+
+    if (received_crc == calculate_crc(received_text, strlen(received_text))) {
+        // CRC verification passed
+        // Transmit text from MCU to PC
+        for (int i = 0; i < strlen(received_text); i++) {
+            uart_transmit_pc(received_text[i]);
+        }
+        // Transmit CRC to PC
+        uart_transmit_pc(received_crc_low);
+        uart_transmit_pc(received_crc_high);
+
+        // Measure transmission speed (time taken)
+        // Implement your timing mechanism here
+    } else {
+        // CRC verification failed, handle accordingly
+    }
+
+    return 0;
+}
